@@ -24,11 +24,11 @@ class _MyAppState extends State<SmsAnnouncer> {
   String? engine;
   double volume = 1.0;
   double pitch = 1.0;
-  double rate = 0.5;
+  double rate = 0.4;
   bool isCurrentLanguageInstalled = false;
 
   String? _newVoiceText;
-  int _numberOfSms = 5;
+  int _numberOfSms = 3;
   int _sleepBetweenMessages = 2;
 
   TtsState ttsState = TtsState.stopped;
@@ -53,7 +53,6 @@ class _MyAppState extends State<SmsAnnouncer> {
     _numberOfSmsController =
         TextEditingController(text: _numberOfSms.toString());
     initTts();
-    getAllMessages();
     super.initState();
   }
 
@@ -198,7 +197,7 @@ class _MyAppState extends State<SmsAnnouncer> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: Text('SMS Oppleser'),
+          title: Text('SMS-Oppleser'),
         ),
         body: SingleChildScrollView(
           scrollDirection: Axis.vertical,
@@ -225,7 +224,7 @@ class _MyAppState extends State<SmsAnnouncer> {
           child:
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
             _buildButtonColumn(Colors.blue, Colors.blueAccent, Icons.play_arrow,
-                'Spill av siste SMSer', _speak),
+                'Les opp SMS', _speak),
             _buildButtonColumn(
                 Colors.purple, Colors.purpleAccent, Icons.stop, 'Stopp', _stop),
           ]));
@@ -284,7 +283,7 @@ class _MyAppState extends State<SmsAnnouncer> {
               margin: const EdgeInsets.only(top: 2.0),
               child: Text(label,
                   style: TextStyle(
-                      fontSize: 20.0,
+                      fontSize: 24.0,
                       fontWeight: FontWeight.w400,
                       color: color)))
         ]);
