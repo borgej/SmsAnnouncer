@@ -5,27 +5,31 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:sms/sms.dart';
+import 'package:numberpicker/numberpicker.dart';
+import 'package:flutter/services.dart';
+import 'package:sms/contact.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(SmsAnnouncer());
 
-class MyApp extends StatefulWidget {
+class SmsAnnouncer extends StatefulWidget {
   @override
   _MyAppState createState() => _MyAppState();
 }
 
 enum TtsState { playing, stopped, paused, continued }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<SmsAnnouncer> {
   late FlutterTts flutterTts;
   String? language;
   String? engine;
-  double volume = 0.5;
+  double volume = 1.0;
   double pitch = 1.0;
   double rate = 0.5;
   bool isCurrentLanguageInstalled = false;
 
   String? _newVoiceText;
-  int? _inputLength;
+  int _numberOfSms = 5;
+  int _sleepBetweenMessages = 2;
 
   TtsState ttsState = TtsState.stopped;
 
@@ -38,15 +42,37 @@ class _MyAppState extends State<MyApp> {
   bool get isAndroid => !kIsWeb && Platform.isAndroid;
   bool get isWeb => kIsWeb;
 
+  late TextEditingController _numberOfSmsController;
+
+  SmsQuery query = new SmsQuery();
+  List<SmsMessage>? allmessages;
+  List<SmsThread>? allthreads;
+
   @override
   initState() {
-    super.initState();
+    _numberOfSmsController =
+        TextEditingController(text: _numberOfSms.toString());
     initTts();
+    getAllMessages();
+    super.initState();
+  }
+
+  void getAllMessages() {
+    Future.delayed(Duration.zero, () async {
+      List<SmsMessage> messages = await query.querySms(
+        //querySms is from sms package
+        kinds: [SmsQueryKind.Inbox],
+        //filter Inbox, sent or draft messages
+        count: _numberOfSms, //number of sms to read
+      );
+      setState(() {
+        allmessages = messages;
+      });
+    });
   }
 
   initTts() {
     flutterTts = FlutterTts();
-
     flutterTts.setLanguage("nb-NO");
     flutterTts.setEngine("com.google.android.tts");
 
@@ -101,10 +127,6 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<dynamic> _getLanguages() => flutterTts.getLanguages;
-
-  Future<dynamic> _getEngines() => flutterTts.getEngines;
-
   Future _getDefaultEngine() async {
     var engine = await flutterTts.getDefaultEngine;
     if (engine != null) {
@@ -113,26 +135,40 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future _speak() async {
-    SmsQuery query = new SmsQuery();
+    getAllMessages();
     await flutterTts.setVolume(volume);
     await flutterTts.setSpeechRate(rate);
     await flutterTts.setPitch(pitch);
 
-    if (_newVoiceText != null) {
-      if (_newVoiceText!.isNotEmpty) {
-        await flutterTts.speak(_newVoiceText!);
-      }
-    }
-  }
+    flutterTts.speak("Leser opp de siste " +
+        _numberOfSms.toString() +
+        " mottatte meldinger");
+    flutterTts.awaitSpeakCompletion(true);
 
-  void _speakOut(from, text) async {
-    await flutterTts.setVolume(volume);
-    await flutterTts.setSpeechRate(rate);
-    await flutterTts.setPitch(pitch);
+    if (allmessages != null) {
+      for (var sms in allmessages!) {
+        if (sms.body.isNotEmpty) {
+          String sender = sms.sender;
+          ContactQuery contacts = ContactQuery();
+          Contact contact = await contacts.queryContact(sms.address);
 
-    if (text != null) {
-      if (text!.isNotEmpty) {
-        await flutterTts.speak(text!);
+          if (contact != null) {
+            if (contact.fullName != null && contact.fullName.isNotEmpty) {
+              sender = contact.fullName;
+            } else {
+              sender = contact.address;
+            }
+          }
+          print(sms.date);
+          print(sender);
+          print(contact.fullName);
+          print(sms.body);
+          await flutterTts.speak("Melding mottatt fra " + sender);
+          await Future.delayed(Duration(seconds: 1));
+          await flutterTts.speak(sms.body);
+          flutterTts.awaitSpeakCompletion(true);
+          await Future.delayed(Duration(seconds: _sleepBetweenMessages));
+        }
       }
     }
   }
@@ -157,56 +193,30 @@ class _MyAppState extends State<MyApp> {
     flutterTts.stop();
   }
 
-  List<DropdownMenuItem<String>> getEnginesDropDownMenuItems(dynamic engines) {
-    var items = <DropdownMenuItem<String>>[];
-    for (dynamic type in engines) {
-      items.add(DropdownMenuItem(
-          value: type as String?, child: Text(type as String)));
-    }
-    return items;
-  }
-
-  List<DropdownMenuItem<String>> getLanguageDropDownMenuItems(
-      dynamic languages) {
-    var items = <DropdownMenuItem<String>>[];
-    for (dynamic type in languages) {
-      items.add(DropdownMenuItem(
-          value: type as String?, child: Text(type as String)));
-    }
-    return items;
-  }
-
-  void _onChange(String text) {
-    setState(() {
-      _newVoiceText = text;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: Text('SMS oppleser'),
+          title: Text('SMS Oppleser'),
         ),
         body: SingleChildScrollView(
           scrollDirection: Axis.vertical,
+          padding: const EdgeInsets.all(30.0),
           child: Column(
-            children: [_inputSection(), _btnSection()],
+            children: [
+              _btnSection(),
+              const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(""),
+              ),
+              _buildNumberColumn()
+            ],
           ),
         ),
       ),
     );
   }
-
-  Widget _inputSection() => Container(
-      alignment: Alignment.topCenter,
-      padding: EdgeInsets.only(top: 25.0, left: 25.0, right: 25.0),
-      child: TextField(
-        onChanged: (String value) {
-          _onChange(value);
-        },
-      ));
 
   Widget _btnSection() {
     if (isAndroid) {
@@ -214,24 +224,48 @@ class _MyAppState extends State<MyApp> {
           padding: EdgeInsets.only(top: 50.0),
           child:
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _buildButtonColumn(Colors.green, Colors.greenAccent,
-                Icons.play_arrow, 'Les opp de siste mottatte SMS', _speak),
+            _buildButtonColumn(Colors.blue, Colors.blueAccent, Icons.play_arrow,
+                'Spill av siste SMSer', _speak),
             _buildButtonColumn(
-                Colors.red, Colors.redAccent, Icons.stop, 'Stopp', _stop),
+                Colors.purple, Colors.purpleAccent, Icons.stop, 'Stopp', _stop),
           ]));
     } else {
       return Container(
           padding: EdgeInsets.only(top: 50.0),
           child:
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _buildButtonColumn(Colors.green, Colors.greenAccent,
-                Icons.play_arrow, 'PLAY', _speak),
+            _buildButtonColumn(Colors.blue, Colors.blueAccent, Icons.play_arrow,
+                'PLAY', _speak),
             _buildButtonColumn(
-                Colors.red, Colors.redAccent, Icons.stop, 'STOP', _stop),
+                Colors.purple, Colors.purpleAccent, Icons.stop, 'STOP', _stop),
             _buildButtonColumn(
                 Colors.blue, Colors.blueAccent, Icons.pause, 'PAUSE', _pause),
           ]));
     }
+  }
+
+  Column _buildNumberColumn() {
+    return Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TextField(
+            controller: _numberOfSmsController,
+            decoration:
+                new InputDecoration(labelText: "Les opp antall meldinger:"),
+            keyboardType: TextInputType.number,
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly
+            ],
+            onChanged: (value) {
+              if (value.isNotEmpty) {
+                _numberOfSms = int.parse(value);
+              }
+            },
+            style: TextStyle(fontSize: 30.0, height: 3.0, color: Colors.black),
+            // Only numbers can be entered
+          ),
+        ]);
   }
 
   Column _buildButtonColumn(Color color, Color splashColor, IconData icon,
@@ -243,77 +277,16 @@ class _MyAppState extends State<MyApp> {
           IconButton(
               icon: Icon(icon),
               color: color,
+              iconSize: 100,
               splashColor: splashColor,
               onPressed: () => func()),
           Container(
-              margin: const EdgeInsets.only(top: 8.0),
+              margin: const EdgeInsets.only(top: 2.0),
               child: Text(label,
                   style: TextStyle(
-                      fontSize: 12.0,
+                      fontSize: 20.0,
                       fontWeight: FontWeight.w400,
                       color: color)))
         ]);
-  }
-
-  Widget _getMaxSpeechInputLengthSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton(
-          child: Text('Get max speech input length'),
-          onPressed: () async {
-            _inputLength = await flutterTts.getMaxSpeechInputLength;
-            setState(() {});
-          },
-        ),
-        Text("$_inputLength characters"),
-      ],
-    );
-  }
-
-  Widget _buildSliders() {
-    return Column(
-      children: [_volume(), _pitch(), _rate()],
-    );
-  }
-
-  Widget _volume() {
-    return Slider(
-        value: volume,
-        onChanged: (newVolume) {
-          setState(() => volume = newVolume);
-        },
-        min: 0.0,
-        max: 1.0,
-        divisions: 10,
-        label: "Volume: $volume");
-  }
-
-  Widget _pitch() {
-    return Slider(
-      value: pitch,
-      onChanged: (newPitch) {
-        setState(() => pitch = newPitch);
-      },
-      min: 0.5,
-      max: 2.0,
-      divisions: 15,
-      label: "Pitch: $pitch",
-      activeColor: Colors.red,
-    );
-  }
-
-  Widget _rate() {
-    return Slider(
-      value: rate,
-      onChanged: (newRate) {
-        setState(() => rate = newRate);
-      },
-      min: 0.0,
-      max: 1.0,
-      divisions: 10,
-      label: "Rate: $rate",
-      activeColor: Colors.green,
-    );
   }
 }
