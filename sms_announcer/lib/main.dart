@@ -142,7 +142,6 @@ class _MyAppState extends State<SmsAnnouncer> {
     flutterTts.speak("Leser opp de siste " +
         _numberOfSms.toString() +
         " mottatte meldinger");
-    flutterTts.awaitSpeakCompletion(true);
 
     if (allmessages != null) {
       for (var sms in allmessages!) {
@@ -165,7 +164,6 @@ class _MyAppState extends State<SmsAnnouncer> {
           await flutterTts.speak("Melding mottatt fra " + sender);
           await Future.delayed(Duration(seconds: 1));
           await flutterTts.speak(sms.body);
-          flutterTts.awaitSpeakCompletion(true);
           await Future.delayed(Duration(seconds: _sleepBetweenMessages));
         }
       }
