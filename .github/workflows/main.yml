@@ -30,13 +30,11 @@ jobs:
         with:
           channel: stable
           version: 3.0.2
-
-      - name: Analyze project source
-        working-directory: ./sms_announcer
-        run: dart analyze
         
       - name: Install dependencies
         working-directory: ./sms_announcer
         run: flutter pub get
-        
+      - name: Analyze project source
+        working-directory: ./sms_announcer
+        run: dart analyze
 
