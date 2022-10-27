@@ -34,7 +34,15 @@ jobs:
       - name: Install dependencies
         working-directory: ./sms_announcer
         run: flutter pub get
+
       - name: Analyze project source
         working-directory: ./sms_announcer
         run: dart analyze
 
+      - name: Build Android apk
+        working-directory: ./sms_announcer
+        run: flutter build apk
+        
+      - name: Build Web
+        working-directory: ./sms_announcer
+        run: flutter build web
