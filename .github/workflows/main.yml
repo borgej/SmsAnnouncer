@@ -38,3 +38,7 @@ jobs:
       - name: Analyze project source
         working-directory: ./sms_announcer
         run: dart analyze
+        
+      - name: Build apk
+        working-directory: ./sms_announcer
+        run: flutter build apk
