@@ -41,8 +41,8 @@ jobs:
 
       - name: Build Android apk
         working-directory: ./sms_announcer
-        run: flutter build apk
+        run: flutter build apk --release --no-sound-null-safety
         
       - name: Build Web
         working-directory: ./sms_announcer
-        run: flutter build web
+        run: flutter build web --release --no-sound-null-safety
