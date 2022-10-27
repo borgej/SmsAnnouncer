@@ -38,7 +38,3 @@ jobs:
       - name: Analyze project source
         working-directory: ./sms_announcer
         run: dart analyze
-
-      - name: Run tests
-        working-directory: ./sms_announcer
-        run: flutter test
