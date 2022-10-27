@@ -1,6 +1,10 @@
 name: Flutter Workflow
 
-on: [push]
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +16,29 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+      
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v2
+        with:
+          channel: stable
+          version: 3.0.2
+      
       - name: Install dependencies
         working-directory: ./sms_announcer
         run: flutter pub get
+        
+      - name: Analyze project source
+        working-directory: ./sms_announcer
+        run: dart analyze
+
+      - name: Run tests
+        working-directory: ./sms_announcer
+        run: flutter test
